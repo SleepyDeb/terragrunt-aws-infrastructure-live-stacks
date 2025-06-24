@@ -34,7 +34,7 @@ remote_state {
   config = {
     encrypt        = false
     bucket         = "terraform-backend-${local.account_id}-${local.aws_region}"
-    key            = "${local.app_name}/${local.env_name}/terragrunt.tfstate"
+    key            = "${path_relative_to_include()}/${local.app_name}/${local.env_name}/terragrunt.tfstate"
     region         = "${local.aws_region}"
     dynamodb_table = "terraform-backend-locks"
   }

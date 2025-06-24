@@ -10,7 +10,7 @@ locals {
 }
 
 unit "dynamo" {
-  source = "git::git@github.com:SleepyDeb/terragrunt-aws-infrastructure-catalog.git//units/dynamodb-app-table"
+  source = "git::git@github.com:SleepyDeb/terragrunt-aws-infrastructure-catalog.git//units/dynamodb-table"
 
   path = "dyn"
 
@@ -20,5 +20,18 @@ unit "dynamo" {
     name              = "${local.deployment_name}-table"
     hash_key          = "id"
     hash_key_type     = "S" # STRING
+  }
+}
+
+unit "backend-app" {
+  source = "git::git@github.com:SleepyDeb/terragrunt-aws-infrastructure-catalog.git//units/ecr-repository"
+  path = "backend-app"
+
+  values = {
+    version = "main"
+
+    name = "${local.deployment_name}-ecr"
+    force_delete = true
+    scan_on_push = false
   }
 }
