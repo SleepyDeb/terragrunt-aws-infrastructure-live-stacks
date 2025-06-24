@@ -1,7 +1,7 @@
 # Common locals for naming and tags
 locals {  
-  app_vars = read_terragrunt_config(find_in_parent_folders("app.hcl"))  
   env_vars = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  app_vars = read_terragrunt_config(find_in_parent_folders("app.hcl"))  
 
   # Extract the variables we need for easy access
   env_name = local.env_vars.env_name
@@ -42,6 +42,12 @@ remote_state {
     path      = "backend.tf"
     if_exists = "overwrite_terragrunt"
   }
+}
+
+catalog {
+  urls = [
+    "https://github.com/SleepyDeb/terragrunt-infrastructure-catalog"
+  ]
 }
 
 inputs = merge(
