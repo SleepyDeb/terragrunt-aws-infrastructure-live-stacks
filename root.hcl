@@ -1,13 +1,13 @@
 # Common locals for naming and tags
-locals {  
+locals {
   env_vars = read_terragrunt_config(find_in_parent_folders("env.hcl"))
   app_vars = read_terragrunt_config(find_in_parent_folders("app.hcl"))  
 
   # Extract the variables we need for easy access
-  env_name = local.env_vars.env_name
-  app_name = local.app_vars.app_name
-  account_id   = local.env_vars.aws_account_id
-  aws_region   = local.env_vars.aws_region
+  env_name = local.env_vars.locals.env_name
+  app_name = local.app_vars.locals.app_name
+  account_id   = local.env_vars.locals.aws_account_id
+  aws_region   = local.env_vars.locals.aws_region
   deployment_name = "${local.env_name}-${local.app_name}"
 
   common_tags = {
@@ -23,7 +23,7 @@ generate "provider" {
   if_exists = "overwrite_terragrunt"
   contents  = <<EOF
 provider "aws" {
-  region = local.aws_region
+  region = "${local.aws_region}"
 }
 EOF
 }

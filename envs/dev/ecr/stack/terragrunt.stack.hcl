@@ -1,5 +1,5 @@
 locals {
-  root_vars = read_terragrunt_config(find_in_parent_folders("root.hcl"))
+  table_name = "sample-table"
 }
 
 unit "dynamo" {
@@ -10,8 +10,8 @@ unit "dynamo" {
   values = {    
     version = "main"
 
-    name              = "${locals.root_vars.deployment_name}-table"
+    name              = "${local.table_name}"
     hash_key          = "id"
-    hash_key_type     = "STRING"
+    hash_key_type     = "S" # STRING
   }
 }
