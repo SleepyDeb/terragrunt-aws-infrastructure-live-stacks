@@ -23,7 +23,7 @@ generate "provider" {
   if_exists = "overwrite_terragrunt"
   contents  = <<EOF
 provider "aws" {
-  region = "${local.aws_region}-lollo"
+  region = "${local.aws_region}"
 }
 EOF
 }
