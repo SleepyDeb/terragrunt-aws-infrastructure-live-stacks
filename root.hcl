@@ -1,19 +1,18 @@
 # Common locals for naming and tags
-locals {
-  # Automatically load account-level variables
-  account_vars = read_terragrunt_config(find_in_parent_folders("account.hcl"))
-
-  # Automatically load region-level variables
-  region_vars = read_terragrunt_config(find_in_parent_folders("region.hcl"))
+locals {  
+  app_vars = read_terragrunt_config(find_in_parent_folders("app.hcl"))  
+  env_vars = read_terragrunt_config(find_in_parent_folders("env.hcl"))
 
   # Extract the variables we need for easy access
-  account_name = local.account_vars.locals.account_name
-  account_id   = local.account_vars.locals.aws_account_id
-  aws_region   = local.region_vars.locals.aws_region
-  
+  env_name = local.env_vars.env_name
+  app_name = local.app_vars.app_name
+  account_id   = local.env_vars.aws_account_id
+  aws_region   = local.env_vars.aws_region
+  deployment_name = "${local.env_name}-${local.app_name}"
+
   common_tags = {
-    Project     = "WebApplication"
-    Environment = local.account_name
+    Application     = local.app_name
+    Environment = local.env_name
     ManagedBy   = "Terragrunt"
   }
 }
@@ -24,7 +23,7 @@ generate "provider" {
   if_exists = "overwrite_terragrunt"
   contents  = <<EOF
 provider "aws" {
-  region = local.region
+  region = local.aws_region
 }
 EOF
 }
@@ -33,11 +32,11 @@ EOF
 remote_state {
   backend = "s3"
   config = {
-    encrypt        = true
-    bucket         = "your-terraform-state-bucket" # Replace with your bucket name
-    key            = "${path_relative_to_include()}/terraform.tfstate"
-    region         = "us-east-1" # Replace with your bucket region
-    dynamodb_table = "terraform-locks" # Replace with your DynamoDB table name
+    encrypt        = false
+    bucket         = "terraform-backend-${local.account_id}-${local.aws_region}"
+    key            = "${local.app_name}/${local.env_name}/terragrunt.tfstate"
+    region         = "${local.aws_region}"
+    dynamodb_table = "terraform-backend-locks"
   }
   generate = {
     path      = "backend.tf"
@@ -46,6 +45,9 @@ remote_state {
 }
 
 inputs = merge(
-  local.account_vars.locals,
-  local.region_vars.locals,
+  local.app_vars.locals,
+  local.env_vars.locals,
+  {
+    deployment_name = local.deployment_name
+  }
 )

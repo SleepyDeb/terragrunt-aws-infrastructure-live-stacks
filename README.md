@@ -1,52 +1,96 @@
-# Terragrunt AWS Infrastructure Live Stacks
+# Setup
 
-## Live Environment Structure
+## Create an S3 bucket and a DynamoDB table for the OpenTofu backend
 
-The live stacks directory contains environment-specific infrastructure configurations for deploying the AWS infrastructure.
-
-- `non-prod/` - Non-production environment configurations for development, testing, and staging.
-- `prod/` - Production environment configurations.
-- Each environment contains region-specific directories (e.g., `us-east-1`) and application-specific stacks (e.g., `web-application`).
-
-## Environment-Specific Configurations
-
-Each environment and region directory contains Terragrunt configuration files (`terragrunt.hcl`) that specify:
-
-- Backend configuration for remote state storage (S3 bucket and DynamoDB table).
-- Inputs and variables specific to the environment.
-- Dependencies between stacks and modules.
-- Provider configurations and region settings.
-
-## Deployment Procedures
-
-To deploy or update infrastructure in a specific environment:
-
+### Set environment variables (auto-detect)
 ```bash
-# Navigate to the environment and stack directory
-cd terragrunt-aws-infrastructure-live-stacks/non-prod/us-east-1/web-application
+# Auto-detect AWS account ID and region from current profile
+export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+export AWS_REGION=$(aws configure get region)
 
-# Plan the changes
-terragrunt run-all plan
-
-# Apply the changes
-terragrunt run-all apply
+# Verify the values
+echo "AWS Account ID: $AWS_ACCOUNT_ID"
+echo "AWS Region: $AWS_REGION"
 ```
 
-Repeat the process for the production environment by changing the path accordingly.
+### Alternative: Set environment variables manually
+```bash
+export AWS_REGION=eu-west-1
+export AWS_ACCOUNT_ID=846173919647
+```
 
-## State Management
+### Create S3 bucket for Terraform state
+```bash
+# Create the bucket
+aws s3api create-bucket --bucket terraform-backend-${AWS_ACCOUNT_ID}-${AWS_REGION} --region ${AWS_REGION} --create-bucket-configuration LocationConstraint=${AWS_REGION}
 
-- Terraform state is stored remotely in an S3 bucket to enable collaboration and state sharing.
-- A DynamoDB table is used for state locking to prevent concurrent modifications.
-- Each environment and stack has its own isolated state to ensure environment separation and reduce risk.
+# Enable versioning
+aws s3api put-bucket-versioning --bucket terraform-backend-${AWS_ACCOUNT_ID}-${AWS_REGION} --versioning-configuration Status=Enabled
 
-## Environment Promotion Workflow
+# Enable server-side encryption
+aws s3api put-bucket-encryption --bucket terraform-backend-${AWS_ACCOUNT_ID}-${AWS_REGION} --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
+```
 
-- Changes are first deployed and tested in the non-production environment.
-- After validation, the same configurations are promoted to the production environment.
-- Promotion involves applying the same Terragrunt configurations in the `prod` directory.
-- This workflow ensures stability and reduces the risk of introducing breaking changes into production.
+### Create DynamoDB table for state locking
+```bash
+aws dynamodb create-table --table-name terraform-backend-locks --key-schema AttributeName=LockID,KeyType=HASH --attribute-definitions AttributeName=LockID,AttributeType=S --billing-mode PAY_PER_REQUEST --region ${AWS_REGION}
+```
 
----
+### Verify resources
+```bash
+# Check S3 bucket
+aws s3 ls s3://terraform-backend-${AWS_ACCOUNT_ID}-${AWS_REGION}
 
-This documentation provides guidance for managing live infrastructure deployments using Terragrunt. For reusable modules and stack definitions, refer to the `terragrunt-aws-infrastructure-catalog` directory.
+# Check DynamoDB table
+aws dynamodb describe-table --table-name terraform-backend-locks --region ${AWS_REGION}
+```
+
+## Using Terragrunt
+
+Once you've created the S3 bucket and DynamoDB table, you can use Terragrunt to manage your Terraform configurations with remote state.
+
+### Terragrunt Configuration Explained
+
+The [`terragrunt.hcl`](terragrunt.hcl:1) file contains:
+
+1. **Remote State Configuration**: Configures S3 backend with state locking
+   - `bucket`: Your S3 bucket for storing state files
+   - `key`: Path within the bucket for this project's state file
+   - `dynamodb_table`: DynamoDB table for state locking
+   - `encrypt`: Enables encryption for state files
+
+2. **Provider Generation**: Automatically generates [`provider.tf`](provider.tf:1) with AWS provider configuration
+
+3. **Backend Generation**: Automatically generates [`backend.tf`](backend.tf:1) with S3 backend configuration
+
+### Common Terragrunt Commands
+
+```bash
+# Initialize and download providers
+terragrunt init
+
+# Plan your infrastructure changes
+terragrunt plan
+
+# Apply your infrastructure changes
+terragrunt apply
+
+# Destroy your infrastructure
+terragrunt destroy
+
+# Format your Terraform files
+terragrunt fmt
+
+# Validate your configuration
+terragrunt validate
+```
+
+### Project Structure
+```
+.
+├── terragrunt.hcl          # Terragrunt configuration
+├── main.tf                 # Your Terraform resources
+├── backend.tf              # Auto-generated backend config
+├── provider.tf             # Auto-generated provider config
+└── README.md               # This file
+```
