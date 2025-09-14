@@ -14,7 +14,7 @@ unit "dynamo" {
 
   path = "dyn"
 
-  values = {    
+  values = {
     version = "main"
 
     name              = "${local.deployment_name}-table"
